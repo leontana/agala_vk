@@ -43,12 +43,12 @@ defmodule Agala.Provider.Vk.Receiver do
       %HTTPoison.Response{
         status_code: _,
         body: %{"ts" => ts, "failed" => 1}
-      }
+      } = resp
     },
     _,
     bot_params
   ) do
-    Logger.debug "Event history is corrupted, resending with new timestamp..."
+    Logger.debug "Event history is corrupted, resending with new timestamp. Response:\n #{inspect resp}"
     Agala.set(bot_params, :poll_server_ts, ts)
     bot_params |> put_in([:private, :ts], ts)
   end
@@ -60,12 +60,12 @@ defmodule Agala.Provider.Vk.Receiver do
       %HTTPoison.Response{
         status_code: _,
         body: %{"failed" => 2}
-      }
+      } = resp
     },
     _,
     bot_params
   ) do
-    Logger.debug "Key's active period expired. Retrieving new key..."
+    Logger.debug "Key's active period expired. Retrieving new key. Response:\n #{inspect resp}"
     bot_params |> put_in([:common, :restart], true)
   end
 
@@ -76,12 +76,12 @@ defmodule Agala.Provider.Vk.Receiver do
       %HTTPoison.Response{
         status_code: _,
         body: %{"failed" => 3}
-      }
+      } = resp
     },
     _,
     bot_params
   ) do
-    Logger.debug "User information was lost. Retrieving new key and timestamp..."
+    Logger.debug "User information was lost. Retrieving new key and timestamp. Response:\n #{inspect resp}"
     bot_params |> put_in([:common, :restart], true)
   end
 
@@ -92,12 +92,12 @@ defmodule Agala.Provider.Vk.Receiver do
       %HTTPoison.Response{
         status_code: _,
         body: %{"failed" => 4}
-      }
+      } = resp
     },
     _,
     bot_params
   ) do
-    Logger.debug "Invalid version number was passed. Restarting..."
+    Logger.debug "Invalid version number was passed. Restarting. Response:\n #{inspect resp}"
     bot_params |> put_in([:common, :restart], true)
   end
   ### -----------------------------------------------------------------------------
@@ -126,13 +126,13 @@ defmodule Agala.Provider.Vk.Receiver do
       %HTTPoison.Error{
         id: nil,
         reason: :timeout
-      }
+      } = resp
     },
     _,
     bot_params
   ) do
     # This is just failed long polling, simply restart
-    Logger.debug("Long polling request ended with timeout, resend to poll")
+    Logger.debug("Long polling request ended with timeout, resend to poll. Response:\n #{inspect resp}")
     bot_params
   end
 
@@ -142,7 +142,7 @@ defmodule Agala.Provider.Vk.Receiver do
       %HTTPoison.Response{
         status_code: 200,
         body: %{"ts" => ts, "updates" => updates}
-      }
+      } = resp
     },
     notify_with,
     bot_params
@@ -153,10 +153,12 @@ defmodule Agala.Provider.Vk.Receiver do
     Agala.set(bot_params, :poll_server_ts, ts)
     bot_params |> put_in([:private, :ts], ts)
   end
-  defp resolve_updates({:ok, %HTTPoison.Response{status_code: status_code, body: body}}, _, bot_params) do
-    Logger.warn("HTTP response ended with status code #{inspect status_code}\nand body:\n#{inspect body}")
+
+  defp resolve_updates({:ok, %HTTPoison.Response{status_code: status_code, body: body} = resp}, _, bot_params) do
+    Logger.warn("HTTP response ended with status code #{inspect status_code}. Response:\n #{inspect resp}")
     bot_params
   end
+
   defp resolve_updates({:error, err}, _, bot_params) do
     Logger.warn("#{inspect err}")
     bot_params
@@ -165,5 +167,6 @@ defmodule Agala.Provider.Vk.Receiver do
   defp parse_body({:ok, resp = %HTTPoison.Response{body: body}}) do
     {:ok, %HTTPoison.Response{resp | body: Poison.decode!(body)}}
   end
+
   defp parse_body(default), do: default
 end
