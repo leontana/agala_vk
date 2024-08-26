@@ -68,4 +68,17 @@ defmodule Agala.Provider.Vk.Helpers.Messages do
       }
     })
   end
+
+  def get_conversaions(conn, count) do
+    Map.put(conn, :response, %Agala.Provider.Vk.Conn.Response{
+      method: :post,
+      payload: %{
+        endpoint: "messages.getConversations",
+        body: create_body(%{
+          count: count
+        }),
+        headers: @headers
+      }
+    })
+  end
 end
